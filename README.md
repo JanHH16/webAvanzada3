@@ -2,8 +2,8 @@
 
 ## Identificación
 
-- Integrantes: [Completar: máximo 3 nombres]
-- Curso y sección: [Completar]
+- Integrantes: Jan Houter y Camila Torres
+- Curso y sección: OII436-1 Ingeniería Web Avanzada
 - URL del repositorio: https://github.com/JanHH16/webAvanzada3
 - Fecha: 09-11-2026
 
@@ -68,6 +68,99 @@ quedaron registradas con:
 ```bash
 python -m pip freeze > requirements.txt
 ```
+
+## Catálogo y perfil inicial
+
+### Campos del catálogo y su uso en el cálculo
+
+`datos/recursos.csv` tiene 12 recursos (R01 a R12) y cuatro columnas: `id`, `titulo`, `descripcion` y `etiquetas`. Solo **`etiquetas`** interviene en el cálculo: `construir_indice` la usa para aprender el vocabulario (17 términos) y construir la matriz TF-IDF de 12 filas. `id` identifica y desempata el orden; `titulo` y `descripcion` solo se muestran al usuario.
+
+### Valores vacíos e identificadores repetidos
+
+`cargar_catalogo` valida el CSV antes de calcular y detiene la ejecución con un `ValueError` en estos casos, comprobados con archivos de prueba:
+
+| Caso | Resultado observado |
+|---|---|
+| Columna `etiquetas` vacía en un recurso | "La columna etiquetas contiene valores vacíos." |
+| Identificador repetido (`R01` dos veces) | "Los identificadores de recursos deben ser únicos." |
+| Falta una columna obligatoria | "Faltan columnas: descripcion." |
+
+Los espacios sobrantes se eliminan antes de validar. En `perfiles.json`, en cambio, un interés vacío **sí es válido**, porque se usa en la prueba T4.
+
+### Perfiles iniciales
+
+Cada usuario conserva tres cosas por separado: sus intereses iniciales (`perfiles.json`), su vector actual (`estado` en `app.py`, creado con `crear_perfil`) y su historial de interacciones (`historial`). La actualización posterior se hace sobre el vector actual, no sobre el texto inicial. Cada usuario tiene su propio vector, por eso lo que hace u1 no modifica a u2 (prueba T3).
+
+| Usuario | Intereses iniciales | Vector inicial (términos con peso) |
+|---|---|---|
+| u1 | python datos pandas | pandas 0.753247, datos 0.465091, python 0.465091 |
+| u2 | angular componentes interfaces | componentes 0.657512, interfaces 0.564679, angular 0.498813 |
+| u3 | (vacío) | vector nulo (17 ceros) |
+| u4 | zzxyz123 | vector nulo (17 ceros) |
+
+u3 y u4 no tienen términos reconocidos: `transform` ignora las palabras fuera del vocabulario, por lo que sus puntuaciones son todas 0, `recomendar` devuelve la lista vacía y la aplicación muestra "No hay coincidencias positivas. Declare intereses presentes en el catálogo."
+
+## Recomendación basada en contenido
+
+### Índice y puntuación
+
+El índice se construye una sola vez al iniciar la aplicación: `TfidfVectorizer.fit_transform` sobre la columna `etiquetas` produce una matriz de 12 filas por 17 términos, con cada fila normalizada (norma 1). Los intereses de cada usuario se representan con `transform` sobre ese mismo vectorizador, por lo que perfil y recursos comparten vocabulario y orden de columnas. `calcular_puntuaciones` usa la similitud del coseno entre el vector del perfil y cada fila de la matriz y devuelve 12 valores, en el mismo orden del catálogo. Se verificó contra un cálculo manual del coseno (`(matriz @ perfil) / (norma_recurso * norma_perfil)`) y coinciden.
+
+### Construcción del ranking
+
+`recomendar` ordena por puntuación descendente y, en caso de empate, por `id` ascendente. Solo incluye puntuaciones mayores que 0 y como máximo 3 resultados, sin completar con recursos de puntuación cero. Cada resultado incluye `id`, `titulo`, `puntuacion` y una explicación con los términos compartidos (función suministrada `construir_resultado`). Las puntuaciones se conservan sin redondear durante el cálculo y se muestran con 4 decimales.
+
+Comprobaciones adicionales realizadas:
+
+- Con `top_k=10`, u1 devuelve 7 recursos y u2 devuelve 3: no se agregan ceros.
+- Perfil `sql`: R10 y R11 empatan en 0.5423 y salen en el orden R10, R11 (desempate por `id`).
+- Perfil `variables`: solo R01 tiene puntuación positiva y la lista tiene un único resultado.
+
+### Ranking inicial (resultados reales)
+
+| Usuario | Puesto | Recurso | Similitud | Términos compartidos |
+|---|---|---|---|---|
+| u1 | 1 | R02, Análisis de datos con Pandas | 1.0000 | datos, pandas, python |
+| u1 | 2 | R12, Conectar Python con datos SQL | 0.4965 | datos, python |
+| u1 | 3 | R03, Gráficos con Python | 0.4326 | datos, python |
+| u2 | 1 | R07, Componentes e interfaces en Angular | 1.0000 | angular, componentes, interfaces |
+| u2 | 2 | R08, Formularios e interfaces en Angular | 0.5677 | angular, interfaces |
+| u2 | 3 | R09, Consumir una API desde Angular | 0.3087 | angular |
+
+Las puntuaciones no son probabilidades: R02 obtiene 1.0000 porque sus etiquetas coinciden exactamente con los intereses de u1, no porque exista una certeza de que le interese. u2 solo tiene 3 recursos con puntuación positiva (los 9 restantes tienen 0), por eso no aparece ningún otro.
+
+## Retroalimentación y adaptación
+
+### Regla de actualización
+
+`actualizar_perfil` calcula `mezcla = 0.4 * vector_actual + 0.6 * vector_recurso` y la normaliza a norma L2 unitaria con `normalize`. Se verificó contra el cálculo manual y la norma resultante es 1.0, también después de una segunda actualización sucesiva. Los pesos 0.4 y 0.6 son parámetros didácticos, no valores óptimos obtenidos de un experimento.
+
+### Secuencia con u1
+
+1. Consulta inicial de u1: R02 (1.0000), R12 (0.4965), R03 (0.4326).
+2. u1 indica **Me interesa** sobre R04 (`API web con Python`), que no estaba entre sus tres recomendaciones iniciales.
+3. `registrar_interes` guarda el evento solo en el historial de u1 y actualiza solo su vector.
+4. Nueva consulta: R04 (0.8752), R02 (0.6880), R09 (0.4958).
+
+### Puntuaciones de los 12 candidatos antes y después
+
+Se conservan los mismos 12 recursos. Los valores completos están en `evidencias/puntuaciones_antes_despues.csv`. Recursos distintos de R04:
+
+| Recurso | Antes | Después | Cambio |
+|---|---|---|---|
+| R05 (web api http) | 0.0000 | 0.4378 | +0.4378 |
+| R06 (web api validacion) | 0.0000 | 0.4378 | +0.4378 |
+| R09 (angular web api) | 0.0000 | 0.4958 | +0.4958 |
+| R02 (python datos pandas) | 1.0000 | 0.6880 | -0.3120 |
+| R10 y R11 (sql datos ...) | 0.2053 | 0.1026 | -0.1027 |
+
+El perfil incorporó `web` y `api` (0.446269 cada uno) y reforzó `python` (0.637116), características de R04. Por eso suben los recursos que comparten `web` y `api` (R05, R06, R09) aunque el usuario no los valoró, y bajan los que dependían de `datos`. Es evidencia de adaptación porque se relaciona el evento con un vector de perfil modificado y con puntuaciones recalculadas.
+
+### Comprobaciones adicionales
+
+- Un identificador desconocido (`R99`) muestra "No existe el recurso R99." y deja perfil e historial sin cambios.
+- El evento queda solo en el historial de u1; u2, u3 y u4 permanecen sin cambios (prueba T3).
+- Un perfil vacío (u3) pasa a tener términos tras valorar R05 (`http 0.7203, api 0.4905, web 0.4905`) y empieza a recibir recomendaciones.
 
 ## Funciones que debe completar
 
@@ -140,6 +233,48 @@ La salida de `python app.py --demo` indicó **Cumple** en T1 a T4 (código de sa
 - Por qué ese cambio es evidencia de adaptación: R05 (`web api http`) no compartía ningún término con el perfil inicial de u1 (`python datos pandas`), por eso su puntuación era 0. Al valorar R04 (`python web api`), el perfil incorporó los términos `web` y `api` (0.446269 cada uno) y R05 comparte justamente esos dos términos, por lo que su puntuación subió sin que el usuario la hubiera valorado. Lo mismo ocurre con R06 (0.0000 → 0.4378) y R09 (0.0000 → 0.4958). En sentido contrario, bajaron los recursos que dependían de `datos`: R02 (1.0000 → 0.6880), R10 y R11 (0.2053 → 0.1026), porque la normalización reparte el peso entre más términos. R07 y R08 se mantienen en 0 porque ninguno de sus términos entró al perfil. Esto demuestra que el estado del perfil se modificó automáticamente por el evento y que el efecto se propaga a todos los candidatos, que son los mismos 12 antes y después.
 - Observación sobre empates: R05 y R06 quedan con la misma puntuación (0.4378); el desempate por `id` ascendente los ordena de forma determinista. Ambos quedan fuera del top 3 por R09 (0.4958).
 - Problemas detectados y acciones realizadas: no se detectaron fallos; las cuatro pruebas cumplen. Dos observaciones: (1) el vocabulario se aprende solo con etiquetas, por lo que un término como `zzxyz123` se ignora y el perfil queda nulo, comportamiento que T4 verifica y que obliga a devolver `[]` (se filtran las puntuaciones `<= 0`). (2) Al abrir el CSV de evidencias con PowerShell 5.1 las tildes aparecen mal; el archivo está en UTF-8 y se ve correcto en un editor o con `encoding="utf-8"`.
+
+### Historial y perfiles de u1 (evento Me interesa sobre R04)
+
+- Historial de u1 antes: sin interacciones.
+- Historial de u1 después: `[{"numero": 1, "accion": "Me interesa", "recurso": "R04"}]`
+- Perfil anterior: `{pandas: 0.753247, datos: 0.465091, python: 0.465091}`
+- Perfil actualizado: `{python: 0.637116, api: 0.446269, web: 0.446269, pandas: 0.376477, datos: 0.232455}`
+- Historiales de u2, u3 y u4: vacíos al terminar la demo.
+
+### Puntuaciones de los 12 recursos antes y después (u1, valorando R04)
+
+| id | Título | Puntuación antes | Puntuación después | Diferencia |
+|---|---|---|---|---|
+| R01 | Fundamentos de Python | 0.1861 | 0.2549 | +0.0688 |
+| R02 | Análisis de datos con Pandas | 1.0000 | 0.6880 | -0.3120 |
+| R03 | Gráficos con Python | 0.4326 | 0.4044 | -0.0282 |
+| R04 | API web con Python (valorado) | 0.2510 | 0.8752 | +0.6241 |
+| R05 | Principios de una API HTTP | 0.0000 | 0.4378 | +0.4378 |
+| R06 | Validación de datos en una API | 0.0000 | 0.4378 | +0.4378 |
+| R07 | Componentes e interfaces en Angular | 0.0000 | 0.0000 | +0.0000 |
+| R08 | Formularios e interfaces en Angular | 0.0000 | 0.0000 | +0.0000 |
+| R09 | Consumir una API desde Angular | 0.0000 | 0.4958 | +0.4958 |
+| R10 | Consultas SQL sobre datos | 0.2053 | 0.1026 | -0.1027 |
+| R11 | Tablas de datos en SQL | 0.2053 | 0.1026 | -0.1027 |
+| R12 | Conectar Python con datos SQL | 0.4965 | 0.4642 | -0.0324 |
+
+Recurso destacado no valorado: **R05** (0.0000 → 0.4378). Comparte con R04 los términos `web` y `api`, que el perfil de u1 incorporó tras la interacción. Los recursos sin ninguno de esos términos o de los de u1 (R07, R08) permanecen en 0.
+
+### u2 antes y después de la interacción de u1
+
+| | Antes | Después |
+|---|---|---|
+| Perfil | componentes 0.657512, interfaces 0.564679, angular 0.498813 | idéntico |
+| Historial | vacío | vacío |
+| Ranking | R07 (1.0000), R08 (0.5677), R09 (0.3087) | R07 (1.0000), R08 (0.5677), R09 (0.3087) |
+
+### u3 y u4 (sin términos reconocidos)
+
+- u3 (intereses vacíos): vector nulo, puntuaciones todas 0, lista vacía.
+- u4 (`zzxyz123`): vector nulo, puntuaciones todas 0, lista vacía.
+- Mensaje mostrado para ambos: "No hay coincidencias positivas. Declare intereses presentes en el catálogo."
+- La aplicación no falló ni atribuyó relevancia a recursos con puntuación cero.
 
 ## Preguntas evaluadas
 
