@@ -1,0 +1,290 @@
+:host {
+  --fondo: #f4f6f9;
+  --superficie: #ffffff;
+  --texto: #1b2430;
+  --suave: #566171;
+  --borde: #d9dee5;
+  --acento: #1f4e79;
+  --acento-texto: #ffffff;
+  --sube: #17703a;
+  --baja: #a4281b;
+  --realce: #e8f1fb;
+  --alerta-fondo: #fdecea;
+  --alerta-texto: #8a1c13;
+  display: block;
+  min-height: 100vh;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  line-height: 1.45;
+}
+
+@media (prefers-color-scheme: dark) {
+  :host {
+    --fondo: #12161c;
+    --superficie: #1a2029;
+    --texto: #e6eaf0;
+    --suave: #a0abb9;
+    --borde: #2c3541;
+    --acento: #6fa8dc;
+    --acento-texto: #0d1117;
+    --sube: #6fd596;
+    --baja: #f29a90;
+    --realce: #20303f;
+    --alerta-fondo: #3a1815;
+    --alerta-texto: #f3b6b0;
+  }
+}
+
+main {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+header {
+  margin-bottom: 1.2rem;
+}
+
+h1 {
+  margin: 0 0 0.4rem;
+  font-size: 1.5rem;
+}
+
+header p {
+  margin: 0;
+  color: var(--suave);
+}
+
+h2 {
+  margin: 1rem 0 0.6rem;
+  font-size: 1.05rem;
+}
+
+section > h2:first-child {
+  margin-top: 0;
+}
+
+h2 small {
+  margin-left: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--suave);
+}
+
+h3 {
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.9rem;
+  color: var(--suave);
+}
+
+section {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.campo {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.campo > span {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+select,
+button {
+  font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--superficie);
+  color: var(--texto);
+}
+
+button {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--acento-texto);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+.valorar {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.valorar select {
+  flex: 1;
+  min-width: 0;
+}
+
+.detalle {
+  margin: 0.7rem 0 0;
+}
+
+.etiquetas {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: var(--suave);
+}
+
+.terminos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.terminos li {
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+.terminos li span {
+  color: var(--suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.anterior li {
+  opacity: 0.8;
+}
+
+.recomendaciones {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding-left: 1.3rem;
+}
+
+.fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.puntuacion {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.barra {
+  height: 6px;
+  margin: 0.3rem 0;
+  border-radius: 3px;
+  background: var(--borde);
+  overflow: hidden;
+}
+
+.barra span {
+  display: block;
+  height: 100%;
+  background: var(--acento);
+}
+
+.recomendaciones small {
+  color: var(--suave);
+}
+
+.resultado {
+  border-color: var(--acento);
+}
+
+.resultado p {
+  margin: 0 0 0.7rem;
+}
+
+.comparacion {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.4rem 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--borde);
+}
+
+th {
+  color: var(--suave);
+  font-weight: 600;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sube {
+  color: var(--sube);
+}
+
+.baja {
+  color: var(--baja);
+}
+
+tr.valorado td {
+  background: var(--realce);
+}
+
+td em {
+  color: var(--suave);
+  font-style: normal;
+}
+
+.historial {
+  margin: 0;
+  padding-left: 1.3rem;
+}
+
+.nota {
+  margin: 0;
+  color: var(--suave);
+}
+
+.pie {
+  margin-top: 0.7rem;
+  font-size: 0.85rem;
+}
+
+.alerta {
+  background: var(--alerta-fondo);
+  color: var(--alerta-texto);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 1rem;
+}

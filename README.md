@@ -11,8 +11,8 @@
 
 Complete un recomendador de recursos de aprendizaje que represente los intereses
 de cada usuario y actualice su perfil al recibir la interacción **Me interesa**.
-El núcleo se implementa en Python y se ejecuta por consola. Una interfaz Angular
-puede incorporarse como extensión después de esta actividad.
+El núcleo se implementa en Python y se ejecuta por consola. La interfaz Angular
+opcional se describe en la sección "Extensión opcional con Angular".
 
 El catálogo, los perfiles, las validaciones, la aplicación por consola y el registro
 de evidencias se proporcionan. Complete únicamente los cuatro bloques señalados
@@ -296,11 +296,56 @@ Recurso destacado no valorado: **R05** (0.0000 → 0.4378). Comparte con R04 los
 6. Indique una limitación del mecanismo implementado y proponga una mejora concreta. Explique qué dato adicional o qué cambio del algoritmo exigiría esa mejora.
    Respuesta: Limitación: el perfil solo crece con intereses positivos y se basa en coincidencia exacta de etiquetas, sin semántica ni olvido. Un solo clic mueve el perfil con peso fijo de 0.6, y el sistema no puede expresar rechazo ni distinguir sinónimos (por ejemplo `grafico` y `graficos` son términos distintos). Mejora concreta: incorporar una interacción **No me interesa** que reste peso a los términos del recurso (por ejemplo `perfil - 0.3 * recurso`, con los valores negativos recortados a 0 antes de normalizar), y un factor de olvido para que los intereses antiguos pierdan peso con el tiempo. Eso exige registrar en el historial el tipo de acción (positiva o negativa) y su fecha, además de decidir y validar los coeficientes con valoraciones reales de usuarios, ya que 0.6 es un valor didáctico.
 
+## Extensión opcional con Angular
+
+La extensión no es necesaria para el núcleo de 60 puntos. Una API Flask (`api.py`) expone el motor y una pantalla Angular (`frontend/`) consume esa API. La API no duplica lógica: reutiliza `cargar_datos`, `crear_estado`, `crear_historial` y `registrar_interes` de `app.py` y `recomendar` y `describir_perfil` de `motor.py`. El estado vive en memoria, igual que en la consola: al reiniciar la API se recuperan los perfiles iniciales.
+
+### Contrato de la API
+
+| Método y ruta | Función |
+|---|---|
+| `GET /usuarios` | Lista los usuarios de demostración (`id`, `nombre`). |
+| `GET /recursos` | Lista los 12 recursos (`id`, `titulo`, `descripcion`, `etiquetas`). |
+| `GET /usuarios/{id}/recomendaciones` | Devuelve `perfil`, `historial`, hasta tres `recomendaciones` y `mensaje` (solo si el perfil no tiene términos). |
+| `POST /usuarios/{id}/interacciones` | Cuerpo `{"recurso_id": "R04"}`. Aplica **Me interesa**, devuelve lo mismo que la ruta anterior más `perfil_anterior`, `recurso_valorado` y `cambios` (puntuación antes y después de los 12 recursos). |
+
+Errores: `404` con `{"error": "No existe el usuario u9."}` o `{"error": "No existe el recurso R99."}` (el estado no cambia) y `400` si el cuerpo no tiene un `recurso_id` de texto.
+
+### Ejecución
+
+La API necesita Flask, que no forma parte del núcleo (`requirements-api.txt` incluye `requirements.txt` más Flask). En una terminal, con el entorno virtual activado:
+
+```bash
+python -m pip install -r requirements-api.txt
+python api.py
+```
+
+En otra terminal (requiere Node.js y npm):
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Abra `http://localhost:4200`. El servidor de desarrollo de Angular reenvía `/api/*` a `http://127.0.0.1:5000` (`frontend/proxy.conf.json`), por lo que no se necesita CORS.
+
+### Interfaz y verificación
+
+Una sola pantalla titulada "Recomendador de recursos de aprendizaje", con tres pasos: (1) selector de usuario y su perfil actual; (2) las tres recomendaciones con su similitud y los términos compartidos; (3) selector del catálogo completo con la descripción del recurso elegido y el botón **Me interesa**. Tras valorar, la vista se desplaza a un bloque "Efecto de la valoración" con el perfil antes y después, la tabla de puntuaciones de los mismos 12 recursos (antes, después y cambio, con el recurso valorado resaltado) y el historial del usuario. Se probó de extremo a extremo con la API y Angular en ejecución:
+
+- u1 muestra R02, R12 y R03. Al valorar R04 desde el catálogo completo, el perfil pasa a `python 0.637116, api 0.446269, web 0.446269, pandas 0.376477, datos 0.232455` y las recomendaciones a R04 (0.8752), R02 (0.6880) y R09 (0.4958), los mismos valores de la demo de consola.
+- u2 conserva su perfil y ranking tras la interacción de u1.
+- u3 muestra "Vector nulo: sin términos reconocidos" y el mensaje "No hay coincidencias positivas. Declare intereses presentes en el catálogo."
+- Un identificador desconocido en la API devuelve 404 y no modifica ni el perfil ni el historial.
+
 ## Archivos de la entrega
 
 Entregue `app.py`, `motor.py`, `datos/recursos.csv`, `datos/perfiles.json`,
 `requirements.txt`, `.gitignore`, este README completado y los dos archivos de
 `evidencias/`. No incluya `.venv`, `__pycache__` ni dependencias instaladas.
+La extensión opcional añade `api.py`, `requirements-api.txt` y la carpeta `frontend/`
+(sin `node_modules` ni `dist`).
 
 ### Reproducción desde una copia nueva
 

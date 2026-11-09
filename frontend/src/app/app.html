@@ -1,0 +1,159 @@
+<main>
+  <header>
+    <h1>Recomendador de recursos de aprendizaje</h1>
+    <p>
+      Elija un usuario y marque <strong>Me interesa</strong> en un recurso del catálogo: su perfil se
+      actualiza y las recomendaciones se recalculan al instante.
+    </p>
+  </header>
+
+  @if (error(); as mensaje) {
+    <p class="alerta" role="alert">{{ mensaje }}</p>
+  }
+
+  @if (estado(); as e) {
+    <section>
+      <label class="campo">
+        <span>1. Usuario</span>
+        <select #selectorUsuario (change)="seleccionarUsuario(selectorUsuario.value)">
+          @for (u of usuarios(); track u.id) {
+            <option [value]="u.id" [selected]="u.id === usuarioId()">{{ u.id }} · {{ u.nombre }}</option>
+          }
+        </select>
+      </label>
+
+      <h2>Perfil de {{ e.usuario }} <small>intereses y su peso</small></h2>
+      @if (terminos().length > 0) {
+        <ul class="terminos">
+          @for (t of terminos(); track t[0]) {
+            <li>{{ t[0] }} <span>{{ t[1] | number: '1.6-6' }}</span></li>
+          }
+        </ul>
+      } @else {
+        <p class="nota">Sin intereses reconocidos en el catálogo.</p>
+      }
+    </section>
+
+    <section>
+      <h2>2. Recomendaciones <small>los 3 recursos más afines al perfil</small></h2>
+      @if (e.recomendaciones.length > 0) {
+        <ol class="recomendaciones">
+          @for (r of e.recomendaciones; track r.id) {
+            <li>
+              <div class="fila">
+                <strong>{{ r.id }} · {{ r.titulo }}</strong>
+                <span class="puntuacion" title="Similitud del coseno, entre 0 y 1">{{ r.puntuacion | number: '1.4-4' }}</span>
+              </div>
+              <div class="barra" aria-hidden="true"><span [style.width.%]="r.puntuacion * 100"></span></div>
+              <small>{{ r.explicacion }}</small>
+            </li>
+          }
+        </ol>
+        <p class="nota pie">La similitud mide coincidencia de etiquetas; no es la probabilidad de que el recurso le guste.</p>
+      } @else {
+        <p class="nota">{{ e.mensaje }}</p>
+      }
+    </section>
+
+    <section>
+      <label class="campo">
+        <span>3. Valorar un recurso del catálogo completo</span>
+        <div class="valorar">
+          <select #selectorRecurso (change)="recursoId.set(selectorRecurso.value)">
+            <option value="" [selected]="recursoId() === ''">Elija un recurso…</option>
+            @for (r of recursos(); track r.id) {
+              <option [value]="r.id" [selected]="r.id === recursoId()">{{ r.id }} · {{ r.titulo }}</option>
+            }
+          </select>
+          <button type="button" [disabled]="!recursoId()" (click)="meInteresa()">Me interesa</button>
+        </div>
+      </label>
+      @if (recursoElegido(); as r) {
+        <p class="detalle">{{ r.descripcion }} <span class="etiquetas">{{ r.etiquetas }}</span></p>
+      } @else {
+        <p class="nota">Puede elegir cualquier recurso, aunque no esté entre las recomendaciones.</p>
+      }
+    </section>
+
+    @if (e.cambios) {
+      <section #resultado class="resultado" aria-live="polite">
+        <h2>Efecto de la valoración</h2>
+        <p>
+          Registró <strong>Me interesa</strong> en
+          <strong>{{ e.recurso_valorado }}{{ recursoValorado() ? ' · ' + recursoValorado()!.titulo : '' }}</strong>.
+          El perfil de {{ e.usuario }} se actualizó:
+        </p>
+        <div class="comparacion">
+          <div>
+            <h3>Antes</h3>
+            <ul class="terminos anterior">
+              @for (t of terminosAnteriores(); track t[0]) {
+                <li>{{ t[0] }} <span>{{ t[1] | number: '1.6-6' }}</span></li>
+              } @empty {
+                <li>sin intereses</li>
+              }
+            </ul>
+          </div>
+          <div>
+            <h3>Después</h3>
+            <ul class="terminos">
+              @for (t of terminos(); track t[0]) {
+                <li>{{ t[0] }} <span>{{ t[1] | number: '1.6-6' }}</span></li>
+              }
+            </ul>
+          </div>
+        </div>
+
+        <h3>Puntuación de los mismos 12 recursos</h3>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Recurso</th>
+              <th scope="col" class="num">Antes</th>
+              <th scope="col" class="num">Después</th>
+              <th scope="col" class="num">Cambio</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of recursosCambiados(); track c.id) {
+              <tr [class.valorado]="c.id === e.recurso_valorado">
+                <td>
+                  {{ c.id }} · {{ c.titulo }}
+                  @if (c.id === e.recurso_valorado) {
+                    <em>(valorado)</em>
+                  }
+                </td>
+                <td class="num">{{ c.antes | number: '1.4-4' }}</td>
+                <td class="num">{{ c.despues | number: '1.4-4' }}</td>
+                <td class="num" [class.sube]="c.despues > c.antes" [class.baja]="c.despues < c.antes">
+                  {{ c.despues > c.antes ? '+' : '' }}{{ c.despues - c.antes | number: '1.4-4' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        @if (recursosSinCambio() > 0) {
+          <p class="nota pie">{{ recursosSinCambio() }} recursos mantienen su puntuación.</p>
+        }
+        <p class="nota pie">
+          Los recursos que suben sin ser el valorado comparten con él términos que el perfil acaba de incorporar.
+        </p>
+      </section>
+    }
+
+    <section>
+      <h2>Historial de {{ e.usuario }}</h2>
+      @if (e.historial.length > 0) {
+        <ol class="historial">
+          @for (ev of e.historial; track ev.numero) {
+            <li>{{ ev.accion }} · {{ ev.recurso }}</li>
+          }
+        </ol>
+      } @else {
+        <p class="nota">Sin interacciones.</p>
+      }
+    </section>
+  } @else if (!error()) {
+    <p class="nota">Cargando…</p>
+  }
+</main>
